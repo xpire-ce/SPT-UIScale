@@ -27,6 +27,7 @@ namespace UIScale.Client.Patches
     {
         private static Type? _scaleControllerType;
         private static FieldInfo? _gameScaleField;
+        private static MethodInfo? _resolutionChangedHandler;
 
         protected override MethodBase GetTargetMethod()
         {
@@ -67,6 +68,25 @@ namespace UIScale.Client.Patches
             scaler.scaleFactor = finalScale;
 
             return false; // skip original
+        }
+
+        public static void Refresh()
+        {
+            var handler = ResolutionChangedHandler;
+            if (handler == null)
+            {
+                Plugin.Log.LogWarning("[UIScale] Could not locate EFT's canvas refresh handler.");
+                return;
+            }
+
+            try
+            {
+                handler.Invoke(null, null);
+            }
+            catch (Exception exception)
+            {
+                Plugin.Log.LogError($"[UIScale] Failed to refresh canvas scales: {exception}");
+            }
         }
 
         private static Type FindScaleControllerType()
@@ -136,5 +156,13 @@ namespace UIScale.Client.Patches
             _gameScaleField ??= ScaleControllerType
                 .GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                 .Single(field => field.FieldType == typeof(float));
+
+        private static MethodInfo? ResolutionChangedHandler =>
+            _resolutionChangedHandler ??= ScaleControllerType.GetMethod(
+                "ResolutionChangedHandler",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
+                binder: null,
+                types: Type.EmptyTypes,
+                modifiers: null);
     }
 }

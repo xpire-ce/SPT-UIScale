@@ -31,6 +31,9 @@ namespace UIScale.Client
                     "Automatically adjusts when you change resolution in-game.",
                     new AcceptableValueRange<int>(50, 150)));
 
+            ScalePercent.SettingChanged += (_, _) => CanvasScalerPatch.Refresh();
+            Enabled.SettingChanged += (_, _) => CanvasScalerPatch.Refresh();
+
             FixTaskSortHeader = Config.Bind(
                 "Task Screen", "Align Sort Header", true,
                 "Align the Tasks sort header to the rendered task-list columns when UI scaling is enabled.");
