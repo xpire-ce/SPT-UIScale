@@ -1,4 +1,5 @@
 using System.Reflection;
+using EFT.UI;
 using SPT.Reflection.Patching;
 using HarmonyLib;
 using UnityEngine;
@@ -7,25 +8,25 @@ using UnityEngine.UI;
 namespace UIScale.Client.Patches
 {
     /// <summary>
-    /// Patches GClass3825.smethod_2 — the single chokepoint where EFT applies
-    /// its scale factor to every registered CanvasScaler.
+    /// Patches UICanvasScalerController.ChangeCanvasScalerRestriction, the single
+    /// chokepoint where EFT applies its scale factor to every registered CanvasScaler.
     ///
     /// Original flow:
-    ///   smethod_0() polls resolution each frame
-    ///   → computes Float_0 = Min(screenW/1920, screenH/1080)
-    ///   → smethod_1() iterates all registered scalers
-    ///   → smethod_2(scaler) calls scaler.SetCanvasRestriction(Float_0)
+    ///   RunResolutionObserver() polls resolution each frame
+    ///   → computes _scaleFactor = Min(screenW/1920, screenH/1080)
+    ///   → ResolutionChangedHandler() iterates all registered scalers
+    ///   → ChangeCanvasScalerRestriction(scaler) applies _scaleFactor
     ///
-    /// This patch reads the game's auto-calculated Float_0 (which updates
+    /// This patch reads the game's auto-calculated _scaleFactor (which updates
     /// when you change resolution in-game) and multiplies it by the user's
     /// scale percentage. 100% = vanilla, 75% = smaller UI / more grid space.
     /// </summary>
     public class CanvasScalerPatch : ModulePatch
     {
-        protected override MethodBase GetTargetMethod()
+        protected override MethodBase? GetTargetMethod()
         {
-            return typeof(GClass3825).GetMethod(
-                "smethod_2",
+            return typeof(UICanvasScalerController).GetMethod(
+                nameof(UICanvasScalerController.ChangeCanvasScalerRestriction),
                 BindingFlags.Public | BindingFlags.Static);
         }
 
@@ -36,8 +37,8 @@ namespace UIScale.Client.Patches
                 return true;
 
             // Read the game's auto-calculated scale for the current resolution.
-            // Float_0 = Min(screenW/1920, screenH/1080), updates on resolution change.
-            float gameScale = GClass3825.Float_0;
+            // _scaleFactor = Min(screenW/1920, screenH/1080), updates on resolution change.
+            float gameScale = UICanvasScalerController._scaleFactor;
 
             // Apply user's percentage adjustment
             float userScale = Plugin.ScalePercent.Value / 100f;
