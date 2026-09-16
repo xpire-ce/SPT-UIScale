@@ -1,20 +1,28 @@
 using System.Collections;
+using System.Linq;
 using System.Reflection;
 using EFT.UI;
-using HarmonyLib;
 using SPT.Reflection.Patching;
 using UnityEngine;
 
 namespace UIScale.Client.Patches
 {
     /// <summary>
-    /// Keeps the task sort headers aligned with the task list, no more vodka for you!
+    /// Reapplies the task header layout after a sort refresh.
     /// </summary>
     public class TaskSortRefreshPatch : ModulePatch
     {
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(TasksPanel), "method_3");
+            return typeof(TasksPanel)
+                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                .Single(method =>
+                {
+                    var parameters = method.GetParameters();
+                    return parameters.Length == 2
+                        && parameters[0].ParameterType == typeof(EQuestsSortType)
+                        && parameters[1].ParameterType == typeof(bool);
+                });
         }
 
         [PatchPostfix]
@@ -28,7 +36,6 @@ namespace UIScale.Client.Patches
 
         private static IEnumerator AlignAfterSortRefresh(Transform root)
         {
-            // Bcause initial fix broke when clicking lol
             yield return null;
             yield return null;
             TaskSortAlignmentPatch.TryAlign(root);

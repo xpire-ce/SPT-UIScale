@@ -25,7 +25,7 @@ namespace UIScale.Client.Patches
         protected override MethodBase GetTargetMethod()
         {
             return typeof(InventoryScreen)
-                .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 .First(m => m.Name == "Show" && m.GetParameters().Length == 10);
         }
 

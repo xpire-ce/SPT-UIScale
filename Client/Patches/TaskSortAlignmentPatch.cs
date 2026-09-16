@@ -5,11 +5,12 @@ using EFT.UI;
 using HarmonyLib;
 using SPT.Reflection.Patching;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace UIScale.Client.Patches
 {
     /// <summary>
-    /// "We have alignment-after-clicking-sorting at home" she said
+    /// Copies the task-list column layout to the Tasks sort header.
     /// </summary>
     public class TaskSortAlignmentPatch : ModulePatch
     {
@@ -52,50 +53,80 @@ namespace UIScale.Client.Patches
                 return false;
 
             var headers = sortPanel.GetComponentsInChildren<FilterButton>(true)
-                .Select(button => button.transform as RectTransform)
-                .OfType<RectTransform>()
-                .Where(rect => rect.gameObject.activeInHierarchy)
-                .OrderBy(GetCenterX)
+                .Where(button => button.gameObject.activeInHierarchy)
+                .Select(button => new
+                {
+                    Button = button,
+                    Rect = button.transform as RectTransform
+                })
+                .Where(entry => entry.Rect != null)
+                .OrderBy(entry => GetCenterX(entry.Rect!))
+                .Select(entry => entry.Button)
                 .ToList();
 
             var columns = new[]
             {
-                GetRectTransform(taskRow, "_traderAvatar"),
-                GetRectTransform(taskRow, "_typeIcon"),
-                GetRectTransform(taskRow, "_taskLabel"),
-                GetRectTransform(taskRow, "_locationLabel"),
-                GetRectTransform(taskRow, "_statusLabel"),
-                GetRectTransform(taskRow, "_progressView")
+                GetColumnCell(taskRow, "_traderAvatar"),
+                GetColumnCell(taskRow, "_typeIcon"),
+                GetColumnCell(taskRow, "_taskLabel"),
+                GetColumnCell(taskRow, "_locationLabel"),
+                GetColumnCell(taskRow, "_statusLabel"),
+                GetColumnCell(taskRow, "_progressView")
             };
 
             if (headers.Count != columns.Length)
                 return false;
 
+            var headerLayout = sortPanel.GetComponent<HorizontalLayoutGroup>();
+            var rowLayout = columns[0]?.parent?.GetComponent<HorizontalLayoutGroup>();
+            if (headerLayout == null || rowLayout == null)
+                return false;
+
+            headerLayout.spacing = rowLayout.spacing;
+
+            // Copy the row widths, including the flexible Task column.
             for (var i = 0; i < headers.Count; i++)
             {
+                var headerLayoutElement = headers[i].GetComponent<LayoutElement>();
                 var column = columns[i];
-                if (column == null)
+                var columnLayoutElement = column?.GetComponent<LayoutElement>();
+                if (headerLayoutElement == null || columnLayoutElement == null)
                     return false;
 
-                var headerCenter = GetCenterX(headers[i]);
-                var columnCenter = GetCenterX(column);
-                headers[i].position += new Vector3(columnCenter - headerCenter, 0f, 0f);
+                headerLayoutElement.minWidth = columnLayoutElement.minWidth;
+                headerLayoutElement.preferredWidth = columnLayoutElement.preferredWidth;
+                headerLayoutElement.flexibleWidth = columnLayoutElement.flexibleWidth;
             }
 
+            var headerRect = sortPanel.transform as RectTransform;
+            if (headerRect == null)
+                return false;
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(headerRect);
+            Canvas.ForceUpdateCanvases();
             return true;
+
         }
 
-        private static RectTransform? GetRectTransform(NotesTask taskRow, string fieldName)
+        private static RectTransform? GetColumnCell(NotesTask taskRow, string fieldName)
         {
-            if (AccessTools.Field(typeof(NotesTask), fieldName)?.GetValue(taskRow) is Component component)
-                return component.transform as RectTransform;
+            if (AccessTools.Field(typeof(NotesTask), fieldName)?.GetValue(taskRow) is not Component component)
+                return null;
 
-            return null;
+            var shortInfo = taskRow.transform.Find("TaskShortInfo");
+            if (shortInfo == null)
+                return null;
+
+            var current = component.transform;
+            while (current != null && current.parent != shortInfo)
+                current = current.parent;
+
+            return current as RectTransform;
         }
 
-        private static float GetCenterX(RectTransform rect)
+        private static float GetCenterX(RectTransform? rect)
         {
-            return rect.TransformPoint(rect.rect.center).x;
+            return rect == null ? float.PositiveInfinity : rect.TransformPoint(rect.rect.center).x;
         }
     }
 }

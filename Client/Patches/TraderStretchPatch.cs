@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using System.Reflection;
 using SPT.Reflection.Patching;
 using HarmonyLib;
@@ -23,12 +24,9 @@ namespace UIScale.Client.Patches
     {
         protected override MethodBase GetTargetMethod()
         {
-            return typeof(TraderScreensGroup).GetMethod(
-                "Show",
-                BindingFlags.Public | BindingFlags.Instance,
-                null,
-                new[] { typeof(TraderScreensGroup).GetNestedType("GClass3888") },
-                null);
+            return typeof(TraderScreensGroup)
+                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                .Single(method => method.Name == "Show" && method.GetParameters().Length == 1);
         }
 
         [PatchPostfix]

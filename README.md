@@ -1,6 +1,6 @@
 # SPT-UIScale
 
-BepInEx client plugin for SPT 4.0.13 that unlocks UI scaling for the inventory and trader screens. Overrides EFT's hardcoded 1080p canvas scaling with a configurable percentage, and adjusts panel layouts so the stash and gear panels properly fill the screen at higher resolutions.
+BepInEx client plugin for SPT 4.1.x that unlocks UI scaling for the inventory, trader, and task screens. It has been checked against the SPT 4.1.5 client and adjusts panel layouts so the stash, gear, and task-sort controls fit the screen at higher resolutions.
 
 ## Features
 
@@ -38,17 +38,18 @@ After first launch, edit `BepInEx/config/com.vonbraunz.uiscale.cfg`:
 
 ## How It Works
 
-EFT uses a central UI scale manager (`GClass3825`) that forces all canvases to a 1080p reference resolution via `ConstantPixelSize` scaling. Every frame it calculates `Min(screenWidth/1920, screenHeight/1080)` and applies that to all registered `CanvasScaler` components.
+EFT uses a central UI scale manager that forces all canvases to a 1080p reference resolution via `ConstantPixelSize` scaling. Every frame it calculates `Min(screenWidth/1920, screenHeight/1080)` and applies that to all registered `CanvasScaler` components. The controller is obfuscated differently between client builds, so the plugin locates it from its stable scaler-registration methods instead of hardcoding its generated class name.
 
 This mod patches that pipeline:
 
-1. **CanvasScalerPatch** — intercepts `GClass3825.smethod_2` and multiplies the game's auto-calculated scale factor by your configured percentage
+1. **CanvasScalerPatch** — intercepts the game's scaler-application method and multiplies the auto-calculated scale factor by your configured percentage
 2. **InventoryStretchPatch** — hooks `InventoryScreen.Show()` to reanchor the gear and stash panels so they fill the wider canvas
 3. **TraderStretchPatch** — hooks `TraderScreensGroup.Show()` to reanchor the trader items and stash panels
+4. **TaskSortAlignmentPatch** — copies the task-list column layout to the Tasks sort header once the task list is created
 
 ## Building
 
-Requires the SPT 4.0.13 client installed at `C:\SPT\ModTest\` (or override `TarkovDir` in the `.csproj`).
+Requires an SPT 4.1.x client (tested with 4.1.5). Set `TarkovDir` to the client directory when building, or override it in the `.csproj`.
 
 ```
 dotnet build Client/UIScale.Client.csproj -c Release
@@ -58,6 +59,6 @@ Output: `Client/bin/Release/UIScale.Client.dll` and `Client/release/UIScale.zip`
 
 ## Compatibility
 
-- SPT 4.0.13
+- SPT 4.1.x (validated against 4.1.5)
 - BepInEx 5.x
 - No server-side component required
